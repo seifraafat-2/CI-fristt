@@ -1,5 +1,7 @@
 const sayHello = require('./index');
 
-if (sayHello() !== "Wrong text") {
+if (sayHello() !== "Hello, World!") {
   throw new Error("❌ Test failed!");
 }
+
+console.log("✅ Test passed!");
