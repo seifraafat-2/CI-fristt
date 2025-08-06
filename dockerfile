@@ -11,5 +11,7 @@ RUN npm install
 # Copy app code
 COPY . .
 
+EXPOSE 3000
+
 # Command to run app or tests
 CMD ["npm", "test"]
