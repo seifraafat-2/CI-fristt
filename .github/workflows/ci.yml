@@ -1,24 +1,57 @@
-name: CI - Node.js Test
+name: CI - Node.js + Docker Build + Deploy to EC2
 
 on:
   push:
     branches: [main]
 
 jobs:
-  test:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
+      - name: Build Docker image
+        run: docker build -t my-ci-app .
+
+      - name: Deploy to EC2 via SSH
+        uses: appleboy/ssh-action@v1.0.0
         with:
-          node-version: 18
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            # Remove old container if exists
+            docker stop my-ci-app || true
+            docker rm my-ci-app || true
 
-      - name: Install dependencies
-        run: npm install
+            # Remove old image
+            docker rmi my-ci-app || true
 
-      - name: Run Test
-        run: npm test
+            # Navigate to app folder or create it
+            mkdir -p ~/app
+            cd ~/app
+
+            # Remove old files
+            rm -rf *
+
+      - name: Copy project files to EC2
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "."
+          target: "~/app"
+
+      - name: Build and run container on EC2
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd ~/app
+            docker build -t my-ci-app .
+            docker run -d -p 80:3000 --name my-ci-app my-ci-app
